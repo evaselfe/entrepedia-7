@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import logoImg from '@/assets/logo.jpg';
 import { 
   Search, 
   Bell, 
@@ -56,7 +57,7 @@ export function Navbar() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
             <img 
-              src="/src/assets/logo.jpg" 
+              src={logoImg} 
               alt="സംരംഭക.com Logo" 
               className="h-9 w-auto rounded-lg"
             />

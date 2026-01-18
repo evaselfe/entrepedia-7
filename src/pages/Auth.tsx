@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import logoImg from '@/assets/logo.jpg';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -148,7 +149,7 @@ export default function Auth() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/src/assets/logo.jpg" alt="സംരംഭക Logo" className="h-20 w-auto rounded-2xl mx-auto mb-4 shadow-glow" />
+          <img src={logoImg} alt="സംരംഭക Logo" className="h-20 w-auto rounded-2xl mx-auto mb-4 shadow-glow" />
           <h1 className="text-3xl font-bold text-foreground">സംരംഭക.com</h1>
           <p className="text-muted-foreground mt-2">Connect. Build. Grow.</p>
         </div>
