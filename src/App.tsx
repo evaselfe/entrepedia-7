@@ -28,6 +28,7 @@ import AdminCommunities from "./pages/admin/AdminCommunities";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminChatModeration from "./pages/admin/AdminChatModeration";
+import AdminBlockedWords from "./pages/admin/AdminBlockedWords";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="/admin/posts" element={<AdminRoute requiredRole="content_moderator"><AdminPosts /></AdminRoute>} />
             <Route path="/admin/communities" element={<AdminRoute><AdminCommunities /></AdminRoute>} />
             <Route path="/admin/reports" element={<AdminRoute requiredRole="content_moderator"><AdminReports /></AdminRoute>} />
+            <Route path="/admin/blocked-words" element={<AdminRoute requiredRole="content_moderator"><AdminBlockedWords /></AdminRoute>} />
             <Route path="/admin/categories" element={<AdminRoute requiredRole="category_manager"><AdminCategories /></AdminRoute>} />
             <Route path="/admin/chat" element={<AdminRoute requiredRole="content_moderator"><AdminChatModeration /></AdminRoute>} />
             

@@ -12,7 +12,8 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  ShieldAlert
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,7 @@ const sidebarLinks: SidebarLink[] = [
   { title: 'Posts', href: '/admin/posts', icon: FileText, requiredRole: 'content_moderator' },
   { title: 'Communities', href: '/admin/communities', icon: Users2 },
   { title: 'Reports', href: '/admin/reports', icon: Flag, requiredRole: 'content_moderator' },
+  { title: 'Word Monitor', href: '/admin/blocked-words', icon: ShieldAlert, requiredRole: 'content_moderator' },
   { title: 'Categories', href: '/admin/categories', icon: Tags, requiredRole: 'category_manager' },
   { title: 'Featured', href: '/admin/featured', icon: Star },
   { title: 'Chat Moderation', href: '/admin/chat', icon: MessageCircle, requiredRole: 'content_moderator' },

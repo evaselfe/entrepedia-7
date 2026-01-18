@@ -44,6 +44,33 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_words: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean
+          updated_at: string | null
+          word: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string | null
+          word: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string | null
+          word?: string
+        }
+        Relationships: []
+      }
       business_follows: {
         Row: {
           business_id: string | null
@@ -860,6 +887,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      contains_blocked_words: { Args: { content: string }; Returns: boolean }
       get_or_create_conversation: {
         Args: { other_user_id: string }
         Returns: string
