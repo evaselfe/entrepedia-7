@@ -113,7 +113,9 @@ export default function Auth() {
           });
         }
       } else {
-        const { error } = await signUpWithEmail(authEmail, password, fullName);
+        // Pass phone number if it's a phone signup
+        const phoneNumber = !isEmail(emailOrPhone) ? emailOrPhone : undefined;
+        const { error } = await signUpWithEmail(authEmail, password, fullName, undefined, phoneNumber);
         if (error) {
           toast({
             title: 'Sign up failed',

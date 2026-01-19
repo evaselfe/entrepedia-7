@@ -189,15 +189,9 @@ export function Navbar() {
                 </Button>
                 <Button 
                   className="gradient-primary text-white" 
-                  onClick={() => {
-                    const appUrl = window.location.origin;
-                    const message = `🚀 Check out സംരംഭക.com - a platform for entrepreneurs to connect, share ideas and grow together! Join now: ${appUrl}`;
-                    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-                    window.open(whatsappUrl, '_blank');
-                  }}
+                  onClick={() => navigate('/auth?mode=signup')}
                 >
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Invite Friends
+                  Sign up
                 </Button>
               </div>
             )}

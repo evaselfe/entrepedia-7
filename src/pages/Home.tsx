@@ -6,6 +6,7 @@ import { CreatePostCard } from '@/components/feed/CreatePostCard';
 import { BusinessFeed } from '@/components/feed/BusinessFeed';
 import { CommunityFeed } from '@/components/feed/CommunityFeed';
 import { DiscoverSidebar } from '@/components/feed/DiscoverSidebar';
+import { DiscoverySection } from '@/components/feed/DiscoverySection';
 import { LocationPromptCard } from '@/components/feed/LocationPromptCard';
 import { ProfileCompletionBanner } from '@/components/feed/ProfileCompletionBanner';
 import { PromotionalBanner } from '@/components/feed/PromotionalBanner';
@@ -181,6 +182,9 @@ export default function Home() {
 
               <TabsContent value="posts" className="mt-4 space-y-4">
                 {user && <CreatePostCard onPostCreated={handlePostCreated} />}
+                
+                {/* Discovery Section - New/Active Communities & Businesses */}
+                <DiscoverySection />
                 
                 {loading ? (
                   Array(3).fill(0).map((_, i) => (

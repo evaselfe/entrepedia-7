@@ -23,7 +23,7 @@ interface AuthContextType {
   isProfileComplete: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUpWithEmail: (email: string, password: string, fullName: string, username?: string) => Promise<{ error: Error | null }>;
+  signUpWithEmail: (email: string, password: string, fullName: string, username?: string, phoneNumber?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   resendVerificationEmail: () => Promise<{ error: Error | null }>;
@@ -99,15 +99,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signUpWithEmail = async (email: string, password: string, fullName: string, username?: string) => {
+  const signUpWithEmail = async (email: string, password: string, fullName: string, username?: string, phoneNumber?: string) => {
+    // For phone number signups, we skip email verification by using a special flow
+    const isPhoneSignup = email.endsWith('@phone.local');
+    
     const { error, data } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
+        // Skip email verification for phone signups
+        emailRedirectTo: isPhoneSignup ? undefined : `${window.location.origin}/`,
         data: {
           full_name: fullName,
           username: username || null,
+          phone_number: phoneNumber || null,
         },
       },
     });
@@ -116,7 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!error && data.user) {
       await supabase
         .from('profiles')
-        .update({ username: username || null, full_name: fullName })
+        .update({ 
+          username: username || null, 
+          full_name: fullName,
+        })
         .eq('id', data.user.id);
     }
     

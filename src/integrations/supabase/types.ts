@@ -706,6 +706,7 @@ export type Database = {
           id: string
           is_blocked: boolean | null
           is_online: boolean | null
+          is_verified: boolean | null
           last_seen: string | null
           location: string | null
           role: Database["public"]["Enums"]["user_role"] | null
@@ -723,6 +724,7 @@ export type Database = {
           id: string
           is_blocked?: boolean | null
           is_online?: boolean | null
+          is_verified?: boolean | null
           last_seen?: string | null
           location?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
@@ -740,6 +742,7 @@ export type Database = {
           id?: string
           is_blocked?: boolean | null
           is_online?: boolean | null
+          is_verified?: boolean | null
           last_seen?: string | null
           location?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
