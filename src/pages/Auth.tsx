@@ -511,6 +511,19 @@ export default function Auth() {
                 >
                   {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
                 </Button>
+
+                {mode === 'signin' && (
+                  <div className="text-center">
+                    <Button 
+                      type="button"
+                      variant="link" 
+                      onClick={() => navigate('/forgot-password')}
+                      className="text-sm text-primary"
+                    >
+                      Forgot Password?
+                    </Button>
+                  </div>
+                )}
               </form>
             </Tabs>
 
