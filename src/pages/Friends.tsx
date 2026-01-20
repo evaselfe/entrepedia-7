@@ -179,6 +179,15 @@ export default function Friends() {
           .from('follows')
           .insert({ follower_id: user.id, following_id: userId });
 
+        // Create a notification for the person being followed
+        await supabase.from('notifications').insert({
+          user_id: userId,
+          type: 'follow',
+          title: 'New follower',
+          body: 'Someone started following you!',
+          data: { follower_id: user.id },
+        });
+
         toast({ title: 'Following!' });
       }
 

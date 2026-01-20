@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Users, UserPlus, UserMinus, Loader2 } from 'lucide-react';
+import { Users, UserPlus, UserMinus, Loader2, UserCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 
@@ -130,6 +131,15 @@ export function FollowStats({ userId }: FollowStatsProps) {
 
       if (error) throw error;
 
+      // Create a notification for the person being followed
+      await supabase.from('notifications').insert({
+        user_id: targetId,
+        type: 'follow',
+        title: 'New follower',
+        body: 'Someone started following you!',
+        data: { follower_id: userId },
+      });
+
       // Find the user from followers and add to following
       const userToAdd = followers.find(f => f.id === targetId);
       if (userToAdd) {
@@ -147,74 +157,90 @@ export function FollowStats({ userId }: FollowStatsProps) {
     }
   };
 
-  const isFollowing = (userId: string) => {
-    return following.some(f => f.id === userId);
+  const isFollowingUser = (targetUserId: string) => {
+    return following.some(f => f.id === targetUserId);
+  };
+
+  const isMutualFriend = (targetUserId: string) => {
+    const theyFollowMe = followers.some(f => f.id === targetUserId);
+    const iFollowThem = following.some(f => f.id === targetUserId);
+    return theyFollowMe && iFollowThem;
   };
 
   const UserCard = ({ user, showFollowBack = false, showUnfollow = false }: { 
     user: UserProfile; 
     showFollowBack?: boolean;
     showUnfollow?: boolean;
-  }) => (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-      <Link to={`/profile/${user.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-        <Avatar className="h-10 w-10 flex-shrink-0">
-          <AvatarImage src={user.avatar_url || ''} />
-          <AvatarFallback className="gradient-primary text-white">
-            {user.full_name?.charAt(0) || 'U'}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1">
-            <p className="font-medium text-foreground truncate">
-              {user.full_name || 'Anonymous'}
-            </p>
-            {user.is_verified && <VerificationBadge isVerified={true} size="sm" />}
+  }) => {
+    const mutual = isMutualFriend(user.id);
+    
+    return (
+      <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+        <Link to={`/profile/${user.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+          <Avatar className="h-10 w-10 flex-shrink-0">
+            <AvatarImage src={user.avatar_url || ''} />
+            <AvatarFallback className="gradient-primary text-white">
+              {user.full_name?.charAt(0) || 'U'}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1 flex-wrap">
+              <p className="font-medium text-foreground truncate">
+                {user.full_name || 'Anonymous'}
+              </p>
+              {user.is_verified && <VerificationBadge isVerified={true} size="sm" />}
+              {mutual && (
+                <Badge variant="secondary" className="text-xs ml-1">
+                  <UserCheck className="h-3 w-3 mr-1" />
+                  Mutual
+                </Badge>
+              )}
+            </div>
+            {user.username && (
+              <p className="text-sm text-muted-foreground truncate">@{user.username}</p>
+            )}
           </div>
-          {user.username && (
-            <p className="text-sm text-muted-foreground truncate">@{user.username}</p>
+        </Link>
+        <div className="flex-shrink-0 ml-2">
+          {showUnfollow && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleUnfollow(user.id)}
+              disabled={unfollowingId === user.id}
+              className="text-destructive hover:text-destructive"
+            >
+              {unfollowingId === user.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <UserMinus className="h-4 w-4 mr-1" />
+                  Unfollow
+                </>
+              )}
+            </Button>
+          )}
+          {showFollowBack && !isFollowingUser(user.id) && (
+            <Button
+              size="sm"
+              onClick={() => handleFollowBack(user.id)}
+              disabled={unfollowingId === user.id}
+              className="gradient-primary text-white"
+            >
+              {unfollowingId === user.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  Follow Back
+                </>
+              )}
+            </Button>
           )}
         </div>
-      </Link>
-      <div className="flex-shrink-0 ml-2">
-        {showUnfollow && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleUnfollow(user.id)}
-            disabled={unfollowingId === user.id}
-            className="text-destructive hover:text-destructive"
-          >
-            {unfollowingId === user.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <UserMinus className="h-4 w-4 mr-1" />
-                Unfollow
-              </>
-            )}
-          </Button>
-        )}
-        {showFollowBack && !isFollowing(user.id) && (
-          <Button
-            size="sm"
-            onClick={() => handleFollowBack(user.id)}
-            disabled={unfollowingId === user.id}
-            className="gradient-primary text-white"
-          >
-            {unfollowingId === user.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <UserPlus className="h-4 w-4 mr-1" />
-                Follow Back
-              </>
-            )}
-          </Button>
-        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Card className="border-0 shadow-soft">
