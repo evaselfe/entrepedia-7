@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Flag } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -9,8 +9,20 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +30,15 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { CommentSection } from './CommentSection';
 import { YouTubeEmbed } from './YouTubeEmbed';
+
+const REPORT_REASONS = [
+  { value: 'spam', label: 'Spam or misleading' },
+  { value: 'harassment', label: 'Harassment or bullying' },
+  { value: 'hate_speech', label: 'Hate speech or discrimination' },
+  { value: 'inappropriate', label: 'Inappropriate content' },
+  { value: 'violence', label: 'Violence or dangerous content' },
+  { value: 'other', label: 'Other' },
+];
 
 interface PostCardProps {
   post: {
@@ -53,6 +74,10 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
   const [isLiking, setIsLiking] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
 
   const isLiked = user ? post.post_likes.some(like => like.user_id === user.id) : false;
   const likeCount = post.post_likes.length;
@@ -143,6 +168,49 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
     }
   };
 
+  const handleReport = async () => {
+    if (!user) {
+      toast({ title: 'Please sign in to report posts', variant: 'destructive' });
+      return;
+    }
+
+    if (!reportReason) {
+      toast({ title: 'Please select a reason', variant: 'destructive' });
+      return;
+    }
+
+    setIsReporting(true);
+    try {
+      const response = await supabase.functions.invoke('report-post', {
+        body: {
+          user_id: user.id,
+          post_id: post.id,
+          reason: reportReason,
+          description: reportDescription || null,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to report post');
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      toast({ title: 'Report submitted', description: 'Thank you for helping keep our community safe.' });
+      setShowReportDialog(false);
+      setReportReason('');
+      setReportDescription('');
+      onUpdate();
+    } catch (error: any) {
+      console.error('Error reporting post:', error);
+      toast({ title: 'Failed to report', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
   const displayName = post.businesses?.name || post.profiles?.full_name || 'Anonymous';
   const displayAvatar = post.businesses?.logo_url || post.profiles?.avatar_url || '';
   const profileLink = post.businesses 
@@ -182,14 +250,29 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
               <DropdownMenuItem onClick={handleSave}>
                 {isSaved ? 'Unsave' : 'Save'}
               </DropdownMenuItem>
+              {user && user.id !== post.user_id && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="text-destructive gap-2" 
+                    onClick={() => setShowReportDialog(true)}
+                  >
+                    <Flag className="h-4 w-4" />
+                    Report
+                  </DropdownMenuItem>
+                </>
+              )}
               {user?.id === post.user_id && (
-                <DropdownMenuItem 
-                  className="text-destructive" 
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? 'Deleting...' : 'Delete'}
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="text-destructive" 
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? 'Deleting...' : 'Delete'}
+                  </DropdownMenuItem>
+                </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -286,6 +369,56 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
           </div>
         )}
       </CardFooter>
+
+      {/* Report Dialog */}
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Report Post</DialogTitle>
+            <DialogDescription>
+              Help us understand what's wrong with this post. Your report is anonymous.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Why are you reporting this post?</Label>
+              <RadioGroup value={reportReason} onValueChange={setReportReason}>
+                {REPORT_REASONS.map((reason) => (
+                  <div key={reason.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={reason.value} id={reason.value} />
+                    <Label htmlFor={reason.value} className="font-normal cursor-pointer">
+                      {reason.label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Additional details (optional)</Label>
+              <Textarea
+                id="description"
+                placeholder="Provide more context about why you're reporting this post..."
+                value={reportDescription}
+                onChange={(e) => setReportDescription(e.target.value)}
+                className="resize-none"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReportDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleReport} 
+              disabled={!reportReason || isReporting}
+              variant="destructive"
+            >
+              {isReporting ? 'Submitting...' : 'Submit Report'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

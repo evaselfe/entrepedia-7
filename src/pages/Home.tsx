@@ -82,6 +82,7 @@ export default function Home() {
           post_likes (user_id),
           comments (id)
         `)
+        .eq('is_hidden', false)
         .order('created_at', { ascending: false })
         .limit(20);
       
