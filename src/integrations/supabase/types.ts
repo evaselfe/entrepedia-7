@@ -830,6 +830,7 @@ export type Database = {
           instagram_url: string | null
           is_featured: boolean | null
           is_hidden: boolean | null
+          report_count: number | null
           updated_at: string | null
           user_id: string | null
           youtube_url: string | null
@@ -845,6 +846,7 @@ export type Database = {
           instagram_url?: string | null
           is_featured?: boolean | null
           is_hidden?: boolean | null
+          report_count?: number | null
           updated_at?: string | null
           user_id?: string | null
           youtube_url?: string | null
@@ -860,6 +862,7 @@ export type Database = {
           instagram_url?: string | null
           is_featured?: boolean | null
           is_hidden?: boolean | null
+          report_count?: number | null
           updated_at?: string | null
           user_id?: string | null
           youtube_url?: string | null
@@ -1259,6 +1262,7 @@ export type Database = {
     }
     Functions: {
       cleanup_expired_otps: { Args: never; Returns: undefined }
+      cleanup_old_messages: { Args: never; Returns: number }
       contains_blocked_words: { Args: { content: string }; Returns: boolean }
       get_or_create_conversation: {
         Args: { current_user_id?: string; other_user_id: string }
