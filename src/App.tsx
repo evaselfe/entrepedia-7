@@ -21,6 +21,8 @@ import NotFound from "./pages/NotFound";
 import VerifyEmail from "./pages/VerifyEmail";
 import PostDetail from "./pages/PostDetail";
 import Friends from "./pages/Friends";
+import Jobs from "./pages/Jobs";
+import JobDetail from "./pages/JobDetail";
 
 // Admin pages
 import { AdminRoute } from "./components/admin/AdminRoute";
@@ -65,6 +67,8 @@ const App = () => (
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/post/:id" element={<PostDetail />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/jobs" element={<Jobs />} />
+            <Route path="/jobs/:id" element={<JobDetail />} />
             
             {/* Admin Routes */}
             <Route path="/admin/login" element={<AdminLogin />} />

@@ -683,6 +683,95 @@ export type Database = {
           },
         ]
       }
+      job_applications: {
+        Row: {
+          applicant_id: string
+          created_at: string | null
+          id: string
+          job_id: string
+          message: string | null
+        }
+        Insert: {
+          applicant_id: string
+          created_at?: string | null
+          id?: string
+          job_id: string
+          message?: string | null
+        }
+        Update: {
+          applicant_id?: string
+          created_at?: string | null
+          id?: string
+          job_id?: string
+          message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applications_applicant_id_fkey"
+            columns: ["applicant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          conditions: string | null
+          created_at: string | null
+          creator_id: string
+          description: string
+          expires_at: string | null
+          id: string
+          location: string | null
+          max_applications: number | null
+          status: Database["public"]["Enums"]["job_status"] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          conditions?: string | null
+          created_at?: string | null
+          creator_id: string
+          description: string
+          expires_at?: string | null
+          id?: string
+          location?: string | null
+          max_applications?: number | null
+          status?: Database["public"]["Enums"]["job_status"] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          conditions?: string | null
+          created_at?: string | null
+          creator_id?: string
+          description?: string
+          expires_at?: string | null
+          id?: string
+          location?: string | null
+          max_applications?: number | null
+          status?: Database["public"]["Enums"]["job_status"] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -1360,6 +1449,7 @@ export type Database = {
         | "create_polls"
         | "moderate_discussions"
         | "manage_members"
+      job_status: "open" | "closed"
       user_role: "user" | "admin"
     }
     CompositeTypes: {
@@ -1507,6 +1597,7 @@ export const Constants = {
         "moderate_discussions",
         "manage_members",
       ],
+      job_status: ["open", "closed"],
       user_role: ["user", "admin"],
     },
   },

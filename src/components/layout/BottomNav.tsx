@@ -1,12 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { PlusSquare, Users, User, UserCheck } from 'lucide-react';
+import { PlusSquare, Users, User, Briefcase } from 'lucide-react';
 import logoImg from '@/assets/logo.jpg';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { icon: null, label: 'Home', path: '/', isLogo: true },
-  { icon: UserCheck, label: 'Friends', path: '/friends' },
+  { icon: Briefcase, label: 'Jobs', path: '/jobs' },
   { icon: PlusSquare, label: 'Create', path: '/create' },
   { icon: Users, label: 'Community', path: '/communities' },
   { icon: User, label: 'Profile', path: '/profile' },

@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Building2, Users, FileText, Plus, MapPin } from 'lucide-react';
+import { Building2, Users, FileText, Plus, MapPin, Briefcase } from 'lucide-react';
 
 interface Post {
   id: string;
@@ -137,6 +137,14 @@ export default function Home() {
                 >
                   <Users className="mr-2 h-4 w-4" />
                   Create Community
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate('/jobs')}
+                >
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  Find Jobs
                 </Button>
                 <Button 
                   variant="outline"
