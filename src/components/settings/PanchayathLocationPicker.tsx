@@ -27,6 +27,34 @@ const KERALA_DISTRICTS = [
   'Kozhikode', 'Wayanad', 'Kannur', 'Kasaragod'
 ];
 
+// Malappuram Panchayaths (complete list with Malayalam names)
+const MALAPPURAM_PANCHAYATHS = [
+  'A.R.Nagar (എ.ആർ.നഗർ)', 'Alamkodu (ആലംകോട്)', 'Aliparambu (ആലിപ്പറമ്പ്)', 'Amarambalam (അമരമ്പലം)',
+  'Anakkayam (ആനക്കയം)', 'Angadipuram (അങ്ങാടിപ്പുറം)', 'Areekkode (അരീക്കോട്)', 'Athavanadu (ആതവനാട്)',
+  'Chaliyar (ചാലിയാർ)', 'Cheekkode (ചീക്കോട്)', 'Chelambra (ചേലമ്പ്ര)', 'Cheriyamundam (ചെറിയമുണ്ടം)',
+  'Cherukavu (ചെറുകാവ്)', 'Chokkadu (ചോക്കാട്)', 'Chunkathara (ചുങ്കത്തറ)', 'Edakkara (എടക്കര)',
+  'Edappal (എടപ്പാൾ)', 'Edappatta (എടപ്പറ്റ)', 'Edarikkode (എടരിക്കോട്)', 'Edavanna (എടവണ്ണ)',
+  'Edayur (എടയൂർ)', 'Elamkulam (ഏലംകുളം)', 'Irimbiliyam (ഇരിമ്പിളിയം)', 'Kaladi (കാലടി)',
+  'Kalikavu (കാളികാവ്)', 'Kalpakanchery (കൽപകഞ്ചേരി)', 'Kannamangalam (കണ്ണമംഗലം)', 'Karulai (കരുളായി)',
+  'Karuvarakkund (കരുവാരക്കുണ്ട്)', 'Kavannoor (കെ അവണ്ണൂർ)', 'Keezhattur (കീഴാറ്റൂർ)', 'Keezhuparambu (കീഴുപറമ്പ്)',
+  'Kodoor (കോഡൂർ)', 'Koottilangadi (കൂട്ടിലങ്ങാടി)', 'Kuruva (കുറുവ)', 'Kuttippuram (കുറ്റിപ്പുറം)',
+  'Kuzhimanna (കുഴിമണ്ണ)', 'Makkaraparambu (മക്കരപറമ്പ്)', 'Mambad (മമ്പാട്)', 'Mangalam (മംഗളം)',
+  'Mankada (മങ്കട)', 'Marakkara (മാറാക്കര)', 'Maranchery (മാറഞ്ചേരി)', 'Melattur (മേലാറ്റൂർ)',
+  'Moonniyur (മൂണ്ണിയൂർ)', 'Moorkkanadu (മൂർക്കനാട്)', 'Morayur (മൊറയൂർ)', 'Muthedam (മുത്തേടം)',
+  'Muthuvallur (മുതുവല്ലൂർ)', 'Nannambra (നന്നമ്പ്ര)', 'Nannamukku (നന്നംമുക്ക്)', 'Niramaruthur (നിറമരുതൂർ)',
+  'Orakam (ഒരകം)', 'Othukkungal (ഒതുക്കുങ്ങൽ)', 'Ozhur (ഒഴൂർ)', 'Pallikkal (പള്ളിക്കൽ)',
+  'Pandikkad (പാണ്ടിക്കാട്)', 'Parappur (പറപ്പൂർ)', 'Perumanna Klari (പെരുമണ്ണ ക്ലാരി)', 'Perumpadappu (പെരുമ്പടപ്പ്)',
+  'Peruvallur (പെരുവള്ളൂർ)', 'Ponmala (പൊന്മള)', 'Ponmundam (പൊന്മുണ്ടം)', 'Porur (പോരൂർ)',
+  'Pothukallu (പോത്തുകല്ല്)', 'Pukkottur (പുക്കോട്ടൂർ)', 'Pulamanthol (പുലാമന്തോൾ)', 'Pulikkal (പുളിക്കൽ)',
+  'Pulpatta (പുൽപ്പറ്റ)', 'Purathur (പുറത്തൂർ)', 'Puzhakkatteeri (പുഴക്കാട്ടീരി)', 'Thalakkadu (തലക്കാട്)',
+  'Thanalur (താനാളൂർ)', 'Thavannur (തവന്നൂർ)', 'Thazhakkode (താഴക്കോട്)', 'Thenhippalam (തേഞ്ഞിപ്പലം)',
+  'Thennala (തെന്നല)', 'Thirunavaya (തിരുനാവായ)', 'Thiruvali (തിരുവാലി)', 'Thrikkalangodu (തൃക്കലങ്ങോട്)',
+  'Thriprangode (തൃപ്രങ്ങോട്)', 'Thuvoor (തുവൂർ)', 'Urgantteeri (ഊർഗന്തീരി)', 'Valavannur (വളവന്നൂർ)',
+  'Vallikkunnu (വള്ളിക്കുന്ന്)', 'Vattakkulam (വട്ടക്കുളം)', 'Vazhakkad (വാഴക്കാട്)', 'Vazhayaur (വാഴയൂർ)',
+  'Vazhikkadavu (വഴിക്കടവ്)', 'Veliyankode (വെളിയങ്കോട്)', 'Vengara (വേങ്ങര)', 'Vettom (വെട്ടം)',
+  'Vettathur (വെട്ടത്തൂർ)', 'Wandoor (വണ്ടൂർ)'
+];
+
 // Common panchayaths by district (for autocomplete suggestions)
 const COMMON_PANCHAYATHS: Record<string, string[]> = {
   'Thiruvananthapuram': ['Nemom', 'Kazhakkoottam', 'Vattiyoorkavu', 'Sreekaryam', 'Pallipuram', 'Venganoor'],
@@ -38,7 +66,7 @@ const COMMON_PANCHAYATHS: Record<string, string[]> = {
   'Ernakulam': ['Aluva', 'Angamaly', 'Perumbavoor', 'Muvattupuzha', 'Kothamangalam', 'Kakkanad'],
   'Thrissur': ['Kodungallur', 'Chalakudy', 'Irinjalakuda', 'Kunnamkulam', 'Guruvayur'],
   'Palakkad': ['Ottapalam', 'Chittur', 'Mannarkkad', 'Pattambi', 'Shoranur'],
-  'Malappuram': ['Manjeri', 'Perinthalmanna', 'Tirur', 'Ponnani', 'Nilambur', 'Kondotty'],
+  'Malappuram': MALAPPURAM_PANCHAYATHS,
   'Kozhikode': ['Vatakara', 'Koyilandy', 'Feroke', 'Ramanattukara', 'Mukkom'],
   'Wayanad': ['Kalpetta', 'Sulthan Bathery', 'Mananthavady', 'Panamaram'],
   'Kannur': ['Thalassery', 'Kannur', 'Payyanur', 'Taliparamba', 'Iritty'],
@@ -52,7 +80,7 @@ interface LocationPickerProps {
 
 export function PanchayathLocationPicker({ value, onChange }: LocationPickerProps) {
   const [country, setCountry] = useState('India');
-  const [district, setDistrict] = useState('');
+  const [district, setDistrict] = useState('Malappuram');
   const [panchayath, setPanchayath] = useState('');
   const [place, setPlace] = useState('');
 
