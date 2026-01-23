@@ -10,17 +10,43 @@ import {
   Flag, 
   Star,
   TrendingUp,
-  Activity
+  Activity,
+  Clock,
+  Briefcase,
+  ArrowRight
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const CHART_COLORS = ['hsl(330, 85%, 60%)', 'hsl(210, 90%, 55%)', 'hsl(195, 85%, 50%)', 'hsl(150, 70%, 50%)', 'hsl(45, 90%, 55%)'];
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const { data: stats, isLoading: statsLoading } = useAdminStats();
+
+  // Fetch pending approvals counts
+  const { data: pendingCounts } = useQuery({
+    queryKey: ['admin-pending-counts'],
+    queryFn: async () => {
+      const [communitiesRes, businessesRes, jobsRes] = await Promise.all([
+        supabase.from('communities').select('id', { count: 'exact', head: true }).eq('approval_status', 'pending'),
+        supabase.from('businesses').select('id', { count: 'exact', head: true }).eq('approval_status', 'pending'),
+        supabase.from('jobs').select('id', { count: 'exact', head: true }).eq('approval_status', 'pending'),
+      ]);
+
+      return {
+        communities: communitiesRes.count || 0,
+        businesses: businessesRes.count || 0,
+        jobs: jobsRes.count || 0,
+        total: (communitiesRes.count || 0) + (businessesRes.count || 0) + (jobsRes.count || 0),
+      };
+    },
+  });
 
   const { data: categoryData } = useQuery({
     queryKey: ['admin-category-stats'],
@@ -76,6 +102,89 @@ export default function AdminDashboard() {
       title="Dashboard" 
       description="Overview of your platform metrics and activity"
     >
+      {/* Pending Approvals Card */}
+      {(pendingCounts?.total ?? 0) > 0 && (
+        <Card className="mb-8 border-orange-500/50 bg-gradient-to-r from-orange-500/5 to-amber-500/5">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-orange-500" />
+                <CardTitle className="text-lg">Pending Approvals</CardTitle>
+              </div>
+              <Badge variant="outline" className="text-orange-600 border-orange-500">
+                {pendingCounts?.total} items need review
+              </Badge>
+            </div>
+            <CardDescription>
+              Review and approve new submissions to make them visible on the platform
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Pending Communities */}
+              <div 
+                className="flex items-center justify-between p-4 rounded-lg bg-background border cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => navigate('/admin/communities')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                    <Users2 className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Communities</p>
+                    <p className="text-sm text-muted-foreground">Awaiting approval</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-blue-500">{pendingCounts?.communities || 0}</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+
+              {/* Pending Businesses */}
+              <div 
+                className="flex items-center justify-between p-4 rounded-lg bg-background border cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => navigate('/admin/businesses')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                    <Building2 className="h-5 w-5 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Businesses</p>
+                    <p className="text-sm text-muted-foreground">Awaiting approval</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-green-500">{pendingCounts?.businesses || 0}</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+
+              {/* Pending Jobs */}
+              <div 
+                className="flex items-center justify-between p-4 rounded-lg bg-background border cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => navigate('/admin/jobs')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+                    <Briefcase className="h-5 w-5 text-purple-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Jobs</p>
+                    <p className="text-sm text-muted-foreground">Awaiting approval</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-purple-500">{pendingCounts?.jobs || 0}</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
