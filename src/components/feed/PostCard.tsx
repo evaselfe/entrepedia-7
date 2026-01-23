@@ -150,15 +150,22 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
       return;
     }
 
+    // Get session token from localStorage
+    const stored = localStorage.getItem('samrambhak_auth');
+    if (!stored) {
+      toast({ title: 'Session expired. Please log in again.', variant: 'destructive' });
+      return;
+    }
+    const { session_token } = JSON.parse(stored);
+
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('posts')
-        .delete()
-        .eq('id', post.id)
-        .eq('user_id', user.id);
+      const response = await supabase.functions.invoke('delete-post', {
+        body: { post_id: post.id, session_token }
+      });
 
-      if (error) throw error;
+      if (response.error) throw response.error;
+      if (response.data?.error) throw new Error(response.data.error);
 
       toast({ title: 'Post deleted successfully' });
       onUpdate();
