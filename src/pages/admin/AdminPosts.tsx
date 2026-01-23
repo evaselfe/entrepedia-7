@@ -86,11 +86,14 @@ export default function AdminPosts() {
 
   const hideMutation = useMutation({
     mutationFn: async ({ postId, hide }: { postId: string; hide: boolean }) => {
+      if (!currentUser?.id) {
+        throw new Error('You must be logged in to perform this action');
+      }
       const response = await supabase.functions.invoke('admin-post-actions', {
         body: {
           action: hide ? 'hide' : 'unhide',
           post_id: postId,
-          user_id: currentUser?.id,
+          user_id: currentUser.id,
           reason: actionReason,
         },
       });
@@ -112,11 +115,14 @@ export default function AdminPosts() {
 
   const deleteMutation = useMutation({
     mutationFn: async (postId: string) => {
+      if (!currentUser?.id) {
+        throw new Error('You must be logged in to perform this action');
+      }
       const response = await supabase.functions.invoke('admin-post-actions', {
         body: {
           action: 'delete',
           post_id: postId,
-          user_id: currentUser?.id,
+          user_id: currentUser.id,
           reason: actionReason,
         },
       });
