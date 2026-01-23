@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DataTable } from '@/components/admin/DataTable';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { useAdminAuthSupabase } from '@/hooks/useAdminAuthSupabase';
 
 interface BlockedWord {
   id: string;
@@ -40,6 +42,8 @@ interface BlockedWord {
 
 export default function AdminBlockedWords() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { sessionToken } = useAdminAuthSupabase();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -48,42 +52,33 @@ export default function AdminBlockedWords() {
   const [selectedWord, setSelectedWord] = useState<BlockedWord | null>(null);
   const [editWord, setEditWord] = useState('');
 
-  const getSessionToken = () => {
-    try {
-      const stored = localStorage.getItem('admin_session');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return parsed.session_token || null;
-      }
-    } catch {
-      return null;
-    }
-    return null;
-  };
-
   const { data: blockedWords, isLoading } = useQuery({
-    queryKey: ['blocked-words'],
+    queryKey: ['blocked-words', sessionToken],
     queryFn: async () => {
-      const token = getSessionToken();
-      if (!token) {
-        throw new Error('No session token');
-      }
+      if (!sessionToken) throw new Error('Session token required');
       const { data, error } = await supabase.functions.invoke('manage-blocked-words', {
-        body: { action: 'list', session_token: token },
+        body: { action: 'list', session_token: sessionToken },
       });
 
-      if (error) throw error;
+      if (error) {
+        const body = (error as any)?.context?.body;
+        if (typeof body === 'string' && body.includes('Session')) {
+          throw new Error('Session expired. Please login again.');
+        }
+        throw error;
+      }
       if (data?.error) throw new Error(data.error);
       return data.data as BlockedWord[];
     },
-    enabled: !!getSessionToken(),
+    enabled: !!sessionToken,
     retry: false,
   });
 
   const addWordMutation = useMutation({
     mutationFn: async (words: string[]) => {
+      if (!sessionToken) throw new Error('Session token required');
       const { data, error } = await supabase.functions.invoke('manage-blocked-words', {
-        body: { action: 'add', session_token: getSessionToken(), words },
+        body: { action: 'add', session_token: sessionToken, words },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -96,6 +91,12 @@ export default function AdminBlockedWords() {
       setAddDialogOpen(false);
     },
     onError: (error: any) => {
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('session')) {
+        toast.error('Session expired. Please login again.');
+        navigate('/admin/login', { replace: true });
+        return;
+      }
       if (error.message?.includes('already exist')) {
         toast.error('One or more words already exist');
       } else {
@@ -106,8 +107,9 @@ export default function AdminBlockedWords() {
 
   const updateWordMutation = useMutation({
     mutationFn: async ({ id, word, is_active }: { id: string; word?: string; is_active?: boolean }) => {
+      if (!sessionToken) throw new Error('Session token required');
       const { data, error } = await supabase.functions.invoke('manage-blocked-words', {
-        body: { action: 'update', session_token: getSessionToken(), id, word, is_active },
+        body: { action: 'update', session_token: sessionToken, id, word, is_active },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -118,15 +120,22 @@ export default function AdminBlockedWords() {
       setEditDialogOpen(false);
       setSelectedWord(null);
     },
-    onError: () => {
+    onError: (error: any) => {
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('session')) {
+        toast.error('Session expired. Please login again.');
+        navigate('/admin/login', { replace: true });
+        return;
+      }
       toast.error('Failed to update blocked word');
     },
   });
 
   const deleteWordMutation = useMutation({
     mutationFn: async (id: string) => {
+      if (!sessionToken) throw new Error('Session token required');
       const { data, error } = await supabase.functions.invoke('manage-blocked-words', {
-        body: { action: 'delete', session_token: getSessionToken(), id },
+        body: { action: 'delete', session_token: sessionToken, id },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -137,7 +146,13 @@ export default function AdminBlockedWords() {
       setDeleteDialogOpen(false);
       setSelectedWord(null);
     },
-    onError: () => {
+    onError: (error: any) => {
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('session')) {
+        toast.error('Session expired. Please login again.');
+        navigate('/admin/login', { replace: true });
+        return;
+      }
       toast.error('Failed to delete blocked word');
     },
   });

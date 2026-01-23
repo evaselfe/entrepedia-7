@@ -13,6 +13,7 @@ interface AdminAuthState {
   user: AdminUser | null;
   isAdmin: boolean;
   roles: AdminRole[];
+  sessionToken: string | null;
   loading: boolean;
   isSuperAdmin: boolean;
   isContentModerator: boolean;
@@ -25,6 +26,7 @@ const ADMIN_STORAGE_KEY = 'admin_session';
 export function useAdminAuthSupabase(): AdminAuthState {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [roles, setRoles] = useState<AdminRole[]>([]);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,6 +54,7 @@ export function useAdminAuthSupabase(): AdminAuthState {
               localStorage.removeItem(ADMIN_STORAGE_KEY);
               setUser(null);
               setRoles([]);
+              setSessionToken(null);
               return;
             }
 
@@ -63,6 +66,7 @@ export function useAdminAuthSupabase(): AdminAuthState {
               localStorage.removeItem(ADMIN_STORAGE_KEY);
               setUser(null);
               setRoles([]);
+              setSessionToken(null);
               return;
             }
 
@@ -73,11 +77,15 @@ export function useAdminAuthSupabase(): AdminAuthState {
             );
             setUser(validatedUser);
             setRoles(validatedRoles);
+            setSessionToken(session_token);
           }
+        } else {
+          setSessionToken(null);
         }
       } catch (error) {
         console.error('Failed to load admin session:', error);
         localStorage.removeItem(ADMIN_STORAGE_KEY);
+        setSessionToken(null);
       } finally {
         setLoading(false);
       }
@@ -90,12 +98,14 @@ export function useAdminAuthSupabase(): AdminAuthState {
     localStorage.removeItem(ADMIN_STORAGE_KEY);
     setUser(null);
     setRoles([]);
+    setSessionToken(null);
   };
 
   return {
     user,
     isAdmin: roles.length > 0,
     roles,
+    sessionToken,
     loading,
     isSuperAdmin: roles.includes('super_admin'),
     isContentModerator: roles.includes('content_moderator') || roles.includes('super_admin'),
