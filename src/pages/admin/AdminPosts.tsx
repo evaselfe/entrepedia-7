@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { MoreHorizontal, Eye, EyeOff, Trash2, Star, Heart, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAdminAuthSupabase } from '@/hooks/useAdminAuthSupabase';
 
 interface Post {
   id: string;
@@ -48,7 +48,7 @@ interface Post {
 }
 
 export default function AdminPosts() {
-  const { user: currentUser } = useAuth();
+  const { user: adminUser, loading: adminLoading } = useAdminAuthSupabase();
   const queryClient = useQueryClient();
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [actionDialog, setActionDialog] = useState<'hide' | 'delete' | null>(null);
@@ -86,14 +86,17 @@ export default function AdminPosts() {
 
   const hideMutation = useMutation({
     mutationFn: async ({ postId, hide }: { postId: string; hide: boolean }) => {
-      if (!currentUser?.id) {
+      if (adminLoading) {
+        throw new Error('Admin session is still loading. Please try again.');
+      }
+      if (!adminUser?.id) {
         throw new Error('You must be logged in to perform this action');
       }
       const response = await supabase.functions.invoke('admin-post-actions', {
         body: {
           action: hide ? 'hide' : 'unhide',
           post_id: postId,
-          user_id: currentUser.id,
+          user_id: adminUser.id,
           reason: actionReason,
         },
       });
@@ -115,14 +118,17 @@ export default function AdminPosts() {
 
   const deleteMutation = useMutation({
     mutationFn: async (postId: string) => {
-      if (!currentUser?.id) {
+      if (adminLoading) {
+        throw new Error('Admin session is still loading. Please try again.');
+      }
+      if (!adminUser?.id) {
         throw new Error('You must be logged in to perform this action');
       }
       const response = await supabase.functions.invoke('admin-post-actions', {
         body: {
           action: 'delete',
           post_id: postId,
-          user_id: currentUser.id,
+          user_id: adminUser.id,
           reason: actionReason,
         },
       });
@@ -145,6 +151,12 @@ export default function AdminPosts() {
 
   const featureMutation = useMutation({
     mutationFn: async ({ postId, feature }: { postId: string; feature: boolean }) => {
+      if (adminLoading) {
+        throw new Error('Admin session is still loading. Please try again.');
+      }
+      if (!adminUser?.id) {
+        throw new Error('You must be logged in to perform this action');
+      }
       const { error } = await supabase
         .from('posts')
         .update({ is_featured: feature })
@@ -153,7 +165,7 @@ export default function AdminPosts() {
       if (error) throw error;
 
       await supabase.from('admin_activity_logs').insert({
-        admin_id: currentUser?.id,
+        admin_id: adminUser.id,
         action: feature ? 'Featured post' : 'Unfeatured post',
         target_type: 'post',
         target_id: postId,
