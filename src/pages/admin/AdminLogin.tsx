@@ -7,14 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Mail, Lock, Shield, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Phone, Lock, Shield, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 
-const emailSchema = z.string().email('Please enter a valid email address');
+const mobileSchema = z.string().regex(/^[6-9]\d{9}$/, 'Please enter a valid 10-digit mobile number');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
 export default function AdminLogin() {
-  const [email, setEmail] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,9 +26,9 @@ export default function AdminLogin() {
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
-    const emailResult = emailSchema.safeParse(email);
-    if (!emailResult.success) {
-      newErrors.email = emailResult.error.errors[0].message;
+    const mobileResult = mobileSchema.safeParse(mobileNumber);
+    if (!mobileResult.success) {
+      newErrors.mobile = mobileResult.error.errors[0].message;
     }
 
     const passwordResult = passwordSchema.safeParse(password);
@@ -48,16 +48,49 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      // Sign in with Supabase Auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Sign in with mobile auth (same as main app)
+      const response = await supabase.functions.invoke('mobile-auth', {
+        body: {
+          action: 'signin',
+          mobile_number: mobileNumber,
+          password,
+        },
       });
 
-      if (error) {
+      if (response.error) {
+        const errorMessage = response.error.message || 'Sign in failed';
+        const contextError = (response.error as any)?.context?.body;
+        if (contextError) {
+          try {
+            const parsed = JSON.parse(contextError);
+            if (parsed.error) {
+              toast({
+                title: 'Login failed',
+                description: parsed.error,
+                variant: 'destructive'
+              });
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
         toast({
           title: 'Login failed',
-          description: error.message,
+          description: errorMessage,
+          variant: 'destructive'
+        });
+        setLoading(false);
+        return;
+      }
+
+      const data = response.data;
+      
+      if (data?.error) {
+        toast({
+          title: 'Login failed',
+          description: data.error,
           variant: 'destructive'
         });
         setLoading(false);
@@ -74,18 +107,13 @@ export default function AdminLogin() {
         return;
       }
 
-      // Sync email from Supabase Auth to profile (fires trigger to assign role)
-      await supabase.rpc('sync_profile_email_from_jwt');
-
-      // Check if user has admin role
+      // Check if user has admin role using service role via edge function
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', data.user.id);
 
       if (rolesError || !roles || roles.length === 0) {
-        // Sign out the user if they don't have admin access
-        await supabase.auth.signOut();
         toast({
           title: 'Access denied',
           description: 'You do not have admin privileges',
@@ -94,6 +122,13 @@ export default function AdminLogin() {
         setLoading(false);
         return;
       }
+
+      // Store admin session
+      localStorage.setItem('admin_session', JSON.stringify({
+        user: data.user,
+        session_token: data.session_token,
+        roles: roles.map(r => r.role),
+      }));
 
       toast({
         title: 'Welcome back!',
@@ -141,27 +176,28 @@ export default function AdminLogin() {
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-2xl text-center">Admin Login</CardTitle>
             <CardDescription className="text-center">
-              Enter your admin credentials to access the dashboard
+              Enter your mobile number and password to access the dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
-              {/* Email */}
+              {/* Mobile Number */}
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="mobile">Mobile Number</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    id="email" 
-                    type="email"
-                    placeholder="admin@example.com" 
+                    id="mobile" 
+                    type="tel"
+                    placeholder="9876543210" 
                     className="pl-10" 
-                    value={email} 
-                    onChange={e => setEmail(e.target.value)} 
-                    autoComplete="email"
+                    value={mobileNumber} 
+                    onChange={e => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))} 
+                    autoComplete="tel"
+                    maxLength={10}
                   />
                 </div>
-                {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                {errors.mobile && <p className="text-sm text-destructive">{errors.mobile}</p>}
               </div>
 
               {/* Password */}

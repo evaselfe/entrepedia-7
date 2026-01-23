@@ -132,13 +132,13 @@ export function AdminSidebar() {
           )}>
             <Avatar className="h-9 w-9">
               <AvatarFallback className="bg-primary/10 text-primary">
-                {user?.email?.charAt(0).toUpperCase() || 'A'}
+                {user?.full_name?.charAt(0).toUpperCase() || user?.mobile_number?.charAt(0) || 'A'}
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-sidebar-foreground truncate">
-                  {user?.email || 'Admin'}
+                  {user?.full_name || user?.mobile_number || 'Admin'}
                 </p>
                 <p className="text-xs text-muted-foreground capitalize">
                   {roles[0]?.replace('_', ' ') || 'Admin'}
