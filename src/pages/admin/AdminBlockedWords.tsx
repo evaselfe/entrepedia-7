@@ -28,7 +28,6 @@ import { Plus, Trash2, Edit2, ShieldAlert } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 
 interface BlockedWord {
@@ -40,7 +39,6 @@ interface BlockedWord {
 }
 
 export default function AdminBlockedWords() {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -50,28 +48,28 @@ export default function AdminBlockedWords() {
   const [selectedWord, setSelectedWord] = useState<BlockedWord | null>(null);
   const [editWord, setEditWord] = useState('');
 
+  const getSessionToken = () => localStorage.getItem('admin_session_token');
+
   const { data: blockedWords, isLoading } = useQuery({
     queryKey: ['blocked-words'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('blocked_words')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.functions.invoke('manage-blocked-words', {
+        body: { action: 'list', session_token: getSessionToken() },
+      });
 
       if (error) throw error;
-      return data as BlockedWord[];
+      if (data?.error) throw new Error(data.error);
+      return data.data as BlockedWord[];
     },
   });
 
   const addWordMutation = useMutation({
     mutationFn: async (words: string[]) => {
-      const { error } = await supabase.from('blocked_words').insert(
-        words.map((word) => ({
-          word: word.toLowerCase().trim(),
-          created_by: user?.id,
-        }))
-      );
+      const { data, error } = await supabase.functions.invoke('manage-blocked-words', {
+        body: { action: 'add', session_token: getSessionToken(), words },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blocked-words'] });
@@ -81,7 +79,7 @@ export default function AdminBlockedWords() {
       setAddDialogOpen(false);
     },
     onError: (error: any) => {
-      if (error.code === '23505') {
+      if (error.message?.includes('already exist')) {
         toast.error('One or more words already exist');
       } else {
         toast.error('Failed to add blocked word(s)');
@@ -91,16 +89,11 @@ export default function AdminBlockedWords() {
 
   const updateWordMutation = useMutation({
     mutationFn: async ({ id, word, is_active }: { id: string; word?: string; is_active?: boolean }) => {
-      const updates: any = {};
-      if (word !== undefined) updates.word = word.toLowerCase().trim();
-      if (is_active !== undefined) updates.is_active = is_active;
-
-      const { error } = await supabase
-        .from('blocked_words')
-        .update(updates)
-        .eq('id', id);
-
+      const { data, error } = await supabase.functions.invoke('manage-blocked-words', {
+        body: { action: 'update', session_token: getSessionToken(), id, word, is_active },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blocked-words'] });
@@ -115,12 +108,11 @@ export default function AdminBlockedWords() {
 
   const deleteWordMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('blocked_words')
-        .delete()
-        .eq('id', id);
-
+      const { data, error } = await supabase.functions.invoke('manage-blocked-words', {
+        body: { action: 'delete', session_token: getSessionToken(), id },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blocked-words'] });
