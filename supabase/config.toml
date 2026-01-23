@@ -1,1 +1,7 @@
 project_id = "fcrdwjukkchdibmpyjkg"
+
+[functions.admin-data]
+verify_jwt = false
+
+[functions.mobile-auth]
+verify_jwt = false
