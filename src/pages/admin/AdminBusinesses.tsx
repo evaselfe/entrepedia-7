@@ -25,7 +25,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { MoreHorizontal, Star, StarOff, Ban, CheckCircle, Eye, XCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useAuth } from '@/contexts/AuthContext';
 import { Constants } from '@/integrations/supabase/types';
 
 interface Business {
@@ -44,44 +43,45 @@ interface Business {
   };
 }
 
+const getSessionToken = () => {
+  const stored = localStorage.getItem('admin_session');
+  return stored ? JSON.parse(stored).session_token : null;
+};
+
 export default function AdminBusinesses() {
-  const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const [actionDialog, setActionDialog] = useState<'disable' | 'reject' | null>(null);
   const [actionReason, setActionReason] = useState('');
 
-  // Get admin session token
-  const getSessionToken = () => {
-    const stored = localStorage.getItem('admin_session');
-    return stored ? JSON.parse(stored).session_token : null;
-  };
-
-  const { data: businesses = [], isLoading } = useQuery({
+  const { data: businesses = [], isLoading, error } = useQuery({
     queryKey: ['admin-businesses'],
     queryFn: async () => {
       const sessionToken = getSessionToken();
       if (!sessionToken) throw new Error('No admin session');
 
-      const { data, error } = await supabase.functions.invoke('admin-data', {
-        body: { action: 'get_businesses' },
+      const { data, error } = await supabase.functions.invoke('admin-manage', {
+        body: { action: 'list', entity_type: 'businesses' },
         headers: { 'x-session-token': sessionToken },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      return data.businesses as Business[];
+      return data.data as Business[];
     },
+    retry: 2,
+    retryDelay: 1000,
   });
 
-  const toggleFeatureMutation = useMutation({
-    mutationFn: async ({ businessId, feature }: { businessId: string; feature: boolean }) => {
+  const updateMutation = useMutation({
+    mutationFn: async ({ businessId, updates }: { businessId: string; updates: Record<string, unknown> }) => {
       const sessionToken = getSessionToken();
-      const { data, error } = await supabase.functions.invoke('admin-data', {
+      const { data, error } = await supabase.functions.invoke('admin-manage', {
         body: { 
-          action: 'update_business',
-          business_id: businessId,
-          updates: { is_featured: feature }
+          action: 'update',
+          entity_type: 'businesses',
+          entity_id: businessId,
+          updates
         },
         headers: { 'x-session-token': sessionToken },
       });
@@ -89,36 +89,9 @@ export default function AdminBusinesses() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
     },
-    onSuccess: (_, { feature }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-businesses'] });
-      toast.success(feature ? 'Business featured successfully' : 'Business unfeatured');
-    },
-    onError: (error) => {
-      toast.error('Failed to update business: ' + error.message);
-    },
-  });
-
-  const disableMutation = useMutation({
-    mutationFn: async ({ businessId, disable }: { businessId: string; disable: boolean }) => {
-      const sessionToken = getSessionToken();
-      const { data, error } = await supabase.functions.invoke('admin-data', {
-        body: { 
-          action: 'update_business',
-          business_id: businessId,
-          updates: { 
-            is_disabled: disable,
-            disabled_reason: disable ? actionReason : null,
-          }
-        },
-        headers: { 'x-session-token': sessionToken },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-    },
-    onSuccess: (_, { disable }) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-businesses'] });
-      toast.success(disable ? 'Business disabled successfully' : 'Business enabled');
+      toast.success('Business updated successfully');
       setActionDialog(null);
       setSelectedBusiness(null);
       setActionReason('');
@@ -128,35 +101,42 @@ export default function AdminBusinesses() {
     },
   });
 
-  const approvalMutation = useMutation({
-    mutationFn: async ({ businessId, status }: { businessId: string; status: 'approved' | 'rejected' }) => {
-      const sessionToken = getSessionToken();
-      const { data, error } = await supabase.functions.invoke('admin-data', {
-        body: { 
-          action: 'update_business',
-          business_id: businessId,
-          updates: { 
-            approval_status: status,
-            disabled_reason: status === 'rejected' ? actionReason : null,
-          }
-        },
-        headers: { 'x-session-token': sessionToken },
-      });
+  const handleApprove = (business: Business) => {
+    updateMutation.mutate({
+      businessId: business.id,
+      updates: { approval_status: 'approved' }
+    });
+  };
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-    },
-    onSuccess: (_, { status }) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-businesses'] });
-      toast.success(`Business ${status} successfully`);
-      setActionDialog(null);
-      setSelectedBusiness(null);
-      setActionReason('');
-    },
-    onError: (error) => {
-      toast.error('Failed to update business: ' + error.message);
-    },
-  });
+  const handleReject = () => {
+    if (!selectedBusiness) return;
+    updateMutation.mutate({
+      businessId: selectedBusiness.id,
+      updates: { 
+        approval_status: 'rejected',
+        disabled_reason: actionReason 
+      }
+    });
+  };
+
+  const handleToggleDisable = () => {
+    if (!selectedBusiness) return;
+    const disable = !selectedBusiness.is_disabled;
+    updateMutation.mutate({
+      businessId: selectedBusiness.id,
+      updates: { 
+        is_disabled: disable,
+        disabled_reason: disable ? actionReason : null,
+      }
+    });
+  };
+
+  const handleToggleFeatured = (business: Business) => {
+    updateMutation.mutate({
+      businessId: business.id,
+      updates: { is_featured: !business.is_featured }
+    });
+  };
 
   const getStatusBadge = (business: Business) => {
     if (business.is_disabled) {
@@ -242,12 +222,7 @@ export default function AdminBusinesses() {
               View Business
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => toggleFeatureMutation.mutate({ 
-                businessId: business.id, 
-                feature: !business.is_featured 
-              })}
-            >
+            <DropdownMenuItem onClick={() => handleToggleFeatured(business)}>
               {business.is_featured ? (
                 <>
                   <StarOff className="h-4 w-4 mr-2" />
@@ -263,10 +238,7 @@ export default function AdminBusinesses() {
             {business.approval_status === 'pending' && (
               <>
                 <DropdownMenuItem
-                  onClick={() => approvalMutation.mutate({ 
-                    businessId: business.id, 
-                    status: 'approved' 
-                  })}
+                  onClick={() => handleApprove(business)}
                   className="text-green-600"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
@@ -320,6 +292,12 @@ export default function AdminBusinesses() {
       title="Business Management" 
       description="Manage business pages, approve listings, and control featured content"
     >
+      {error && (
+        <div className="mb-4 p-4 bg-destructive/10 text-destructive rounded-lg">
+          Error loading businesses: {error.message}
+        </div>
+      )}
+      
       <DataTable
         columns={columns}
         data={businesses}
@@ -333,13 +311,12 @@ export default function AdminBusinesses() {
             options: categoryOptions,
           },
           {
-            key: 'status',
+            key: 'approval_status',
             label: 'Status',
             options: [
-              { value: 'active', label: 'Active' },
+              { value: 'approved', label: 'Active' },
               { value: 'pending', label: 'Pending' },
-              { value: 'disabled', label: 'Disabled' },
-              { value: 'featured', label: 'Featured' },
+              { value: 'rejected', label: 'Rejected' },
             ],
           },
         ]}
@@ -381,11 +358,8 @@ export default function AdminBusinesses() {
             </Button>
             <Button
               variant={selectedBusiness?.is_disabled ? 'default' : 'destructive'}
-              onClick={() => selectedBusiness && disableMutation.mutate({ 
-                businessId: selectedBusiness.id, 
-                disable: !selectedBusiness.is_disabled 
-              })}
-              disabled={disableMutation.isPending}
+              onClick={handleToggleDisable}
+              disabled={updateMutation.isPending}
             >
               {selectedBusiness?.is_disabled ? 'Enable' : 'Disable'}
             </Button>
@@ -423,11 +397,8 @@ export default function AdminBusinesses() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => selectedBusiness && approvalMutation.mutate({ 
-                businessId: selectedBusiness.id, 
-                status: 'rejected'
-              })}
-              disabled={approvalMutation.isPending || !actionReason.trim()}
+              onClick={handleReject}
+              disabled={updateMutation.isPending || !actionReason.trim()}
             >
               Reject
             </Button>

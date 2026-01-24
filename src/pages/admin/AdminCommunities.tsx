@@ -25,7 +25,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { MoreHorizontal, Ban, Eye, Users, Archive, CheckCircle, XCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface Community {
   id: string;
@@ -43,48 +42,45 @@ interface Community {
   member_count?: number;
 }
 
+const getSessionToken = () => {
+  const stored = localStorage.getItem('admin_session');
+  return stored ? JSON.parse(stored).session_token : null;
+};
+
 export default function AdminCommunities() {
-  const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
   const [actionDialog, setActionDialog] = useState<'disable' | 'reject' | null>(null);
   const [actionReason, setActionReason] = useState('');
 
-  // Get admin session token
-  const getSessionToken = () => {
-    const stored = localStorage.getItem('admin_session');
-    return stored ? JSON.parse(stored).session_token : null;
-  };
-
-  const { data: communities = [], isLoading } = useQuery({
+  const { data: communities = [], isLoading, error } = useQuery({
     queryKey: ['admin-communities'],
     queryFn: async () => {
       const sessionToken = getSessionToken();
       if (!sessionToken) throw new Error('No admin session');
 
-      const { data, error } = await supabase.functions.invoke('admin-data', {
-        body: { action: 'get_communities' },
+      const { data, error } = await supabase.functions.invoke('admin-manage', {
+        body: { action: 'list', entity_type: 'communities' },
         headers: { 'x-session-token': sessionToken },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      return data.communities as Community[];
+      return data.data as Community[];
     },
+    retry: 2,
+    retryDelay: 1000,
   });
 
-  const disableMutation = useMutation({
-    mutationFn: async ({ communityId, disable }: { communityId: string; disable: boolean }) => {
+  const updateMutation = useMutation({
+    mutationFn: async ({ communityId, updates }: { communityId: string; updates: Record<string, unknown> }) => {
       const sessionToken = getSessionToken();
-      const { data, error } = await supabase.functions.invoke('admin-data', {
+      const { data, error } = await supabase.functions.invoke('admin-manage', {
         body: { 
-          action: 'update_community',
-          community_id: communityId,
-          updates: { 
-            is_disabled: disable,
-            disabled_at: disable ? new Date().toISOString() : null,
-            disabled_reason: disable ? actionReason : null,
-          }
+          action: 'update',
+          entity_type: 'communities',
+          entity_id: communityId,
+          updates
         },
         headers: { 'x-session-token': sessionToken },
       });
@@ -92,9 +88,9 @@ export default function AdminCommunities() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
     },
-    onSuccess: (_, { disable }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-communities'] });
-      toast.success(disable ? 'Community disabled successfully' : 'Community enabled');
+      toast.success('Community updated successfully');
       setActionDialog(null);
       setSelectedCommunity(null);
       setActionReason('');
@@ -104,35 +100,36 @@ export default function AdminCommunities() {
     },
   });
 
-  const approvalMutation = useMutation({
-    mutationFn: async ({ communityId, status }: { communityId: string; status: 'approved' | 'rejected' }) => {
-      const sessionToken = getSessionToken();
-      const { data, error } = await supabase.functions.invoke('admin-data', {
-        body: { 
-          action: 'update_community',
-          community_id: communityId,
-          updates: { 
-            approval_status: status,
-            disabled_reason: status === 'rejected' ? actionReason : null,
-          }
-        },
-        headers: { 'x-session-token': sessionToken },
-      });
+  const handleApprove = (community: Community) => {
+    updateMutation.mutate({
+      communityId: community.id,
+      updates: { approval_status: 'approved' }
+    });
+  };
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-    },
-    onSuccess: (_, { status }) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-communities'] });
-      toast.success(`Community ${status} successfully`);
-      setActionDialog(null);
-      setSelectedCommunity(null);
-      setActionReason('');
-    },
-    onError: (error) => {
-      toast.error('Failed to update community: ' + error.message);
-    },
-  });
+  const handleReject = () => {
+    if (!selectedCommunity) return;
+    updateMutation.mutate({
+      communityId: selectedCommunity.id,
+      updates: { 
+        approval_status: 'rejected',
+        disabled_reason: actionReason 
+      }
+    });
+  };
+
+  const handleToggleDisable = () => {
+    if (!selectedCommunity) return;
+    const disable = !selectedCommunity.is_disabled;
+    updateMutation.mutate({
+      communityId: selectedCommunity.id,
+      updates: { 
+        is_disabled: disable,
+        disabled_at: disable ? new Date().toISOString() : null,
+        disabled_reason: disable ? actionReason : null,
+      }
+    });
+  };
 
   const getStatusBadge = (community: Community) => {
     if (community.is_disabled) {
@@ -175,7 +172,7 @@ export default function AdminCommunities() {
       render: (community) => (
         <div className="flex items-center gap-1 text-muted-foreground">
           <Users className="h-4 w-4" />
-          <span>{community.member_count}</span>
+          <span>{community.member_count || 0}</span>
         </div>
       ),
     },
@@ -214,10 +211,7 @@ export default function AdminCommunities() {
             {community.approval_status === 'pending' && (
               <>
                 <DropdownMenuItem
-                  onClick={() => approvalMutation.mutate({ 
-                    communityId: community.id, 
-                    status: 'approved' 
-                  })}
+                  onClick={() => handleApprove(community)}
                   className="text-green-600"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
@@ -266,6 +260,12 @@ export default function AdminCommunities() {
       title="Community Management" 
       description="Manage communities, view member activity, and moderate content"
     >
+      {error && (
+        <div className="mb-4 p-4 bg-destructive/10 text-destructive rounded-lg">
+          Error loading communities: {error.message}
+        </div>
+      )}
+      
       <DataTable
         columns={columns}
         data={communities}
@@ -274,12 +274,12 @@ export default function AdminCommunities() {
         isLoading={isLoading}
         filters={[
           {
-            key: 'status',
+            key: 'approval_status',
             label: 'Status',
             options: [
-              { value: 'active', label: 'Active' },
+              { value: 'approved', label: 'Active' },
               { value: 'pending', label: 'Pending' },
-              { value: 'disabled', label: 'Disabled' },
+              { value: 'rejected', label: 'Rejected' },
             ],
           },
         ]}
@@ -321,11 +321,8 @@ export default function AdminCommunities() {
             </Button>
             <Button
               variant={selectedCommunity?.is_disabled ? 'default' : 'destructive'}
-              onClick={() => selectedCommunity && disableMutation.mutate({ 
-                communityId: selectedCommunity.id, 
-                disable: !selectedCommunity.is_disabled 
-              })}
-              disabled={disableMutation.isPending}
+              onClick={handleToggleDisable}
+              disabled={updateMutation.isPending}
             >
               {selectedCommunity?.is_disabled ? 'Enable' : 'Disable'}
             </Button>
@@ -363,11 +360,8 @@ export default function AdminCommunities() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => selectedCommunity && approvalMutation.mutate({ 
-                communityId: selectedCommunity.id, 
-                status: 'rejected'
-              })}
-              disabled={approvalMutation.isPending || !actionReason.trim()}
+              onClick={handleReject}
+              disabled={updateMutation.isPending || !actionReason.trim()}
             >
               Reject
             </Button>

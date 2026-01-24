@@ -23,9 +23,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { MoreHorizontal, Eye, CheckCircle, XCircle, Briefcase, Users } from 'lucide-react';
+import { MoreHorizontal, Eye, CheckCircle, XCircle, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface Job {
   id: string;
@@ -43,46 +42,45 @@ interface Job {
   application_count?: number;
 }
 
+const getSessionToken = () => {
+  const stored = localStorage.getItem('admin_session');
+  return stored ? JSON.parse(stored).session_token : null;
+};
+
 export default function AdminJobs() {
-  const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [actionDialog, setActionDialog] = useState<'reject' | null>(null);
   const [actionReason, setActionReason] = useState('');
 
-  // Get admin session token
-  const getSessionToken = () => {
-    const stored = localStorage.getItem('admin_session');
-    return stored ? JSON.parse(stored).session_token : null;
-  };
-
-  const { data: jobs = [], isLoading } = useQuery({
+  const { data: jobs = [], isLoading, error } = useQuery({
     queryKey: ['admin-jobs'],
     queryFn: async () => {
       const sessionToken = getSessionToken();
       if (!sessionToken) throw new Error('No admin session');
 
-      const { data, error } = await supabase.functions.invoke('admin-data', {
-        body: { action: 'get_jobs' },
+      const { data, error } = await supabase.functions.invoke('admin-manage', {
+        body: { action: 'list', entity_type: 'jobs' },
         headers: { 'x-session-token': sessionToken },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      return data.jobs as Job[];
+      return data.data as Job[];
     },
+    retry: 2,
+    retryDelay: 1000,
   });
 
-  const approvalMutation = useMutation({
-    mutationFn: async ({ jobId, status }: { jobId: string; status: 'approved' | 'rejected' }) => {
+  const updateMutation = useMutation({
+    mutationFn: async ({ jobId, updates }: { jobId: string; updates: Record<string, unknown> }) => {
       const sessionToken = getSessionToken();
-      const { data, error } = await supabase.functions.invoke('admin-data', {
+      const { data, error } = await supabase.functions.invoke('admin-manage', {
         body: { 
-          action: 'update_job',
-          job_id: jobId,
-          updates: { 
-            approval_status: status,
-          }
+          action: 'update',
+          entity_type: 'jobs',
+          entity_id: jobId,
+          updates
         },
         headers: { 'x-session-token': sessionToken },
       });
@@ -90,9 +88,9 @@ export default function AdminJobs() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
     },
-    onSuccess: (_, { status }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-jobs'] });
-      toast.success(`Job ${status} successfully`);
+      toast.success('Job updated successfully');
       setActionDialog(null);
       setSelectedJob(null);
       setActionReason('');
@@ -101,6 +99,21 @@ export default function AdminJobs() {
       toast.error('Failed to update job: ' + error.message);
     },
   });
+
+  const handleApprove = (job: Job) => {
+    updateMutation.mutate({
+      jobId: job.id,
+      updates: { approval_status: 'approved' }
+    });
+  };
+
+  const handleReject = () => {
+    if (!selectedJob) return;
+    updateMutation.mutate({
+      jobId: selectedJob.id,
+      updates: { approval_status: 'rejected' }
+    });
+  };
 
   const getStatusBadge = (job: Job) => {
     if (job.approval_status === 'pending') {
@@ -150,7 +163,7 @@ export default function AdminJobs() {
       render: (job) => (
         <div className="flex items-center gap-1 text-muted-foreground">
           <Users className="h-4 w-4" />
-          <span>{job.application_count}</span>
+          <span>{job.application_count || 0}</span>
         </div>
       ),
     },
@@ -189,10 +202,7 @@ export default function AdminJobs() {
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => approvalMutation.mutate({ 
-                    jobId: job.id, 
-                    status: 'approved' 
-                  })}
+                  onClick={() => handleApprove(job)}
                   className="text-green-600"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
@@ -221,6 +231,12 @@ export default function AdminJobs() {
       title="Job Management" 
       description="Review and approve job postings, manage applications"
     >
+      {error && (
+        <div className="mb-4 p-4 bg-destructive/10 text-destructive rounded-lg">
+          Error loading jobs: {error.message}
+        </div>
+      )}
+      
       <DataTable
         columns={columns}
         data={jobs}
@@ -229,12 +245,12 @@ export default function AdminJobs() {
         isLoading={isLoading}
         filters={[
           {
-            key: 'status',
+            key: 'approval_status',
             label: 'Status',
             options: [
-              { value: 'open', label: 'Open' },
+              { value: 'approved', label: 'Approved' },
               { value: 'pending', label: 'Pending' },
-              { value: 'closed', label: 'Closed' },
+              { value: 'rejected', label: 'Rejected' },
             ],
           },
         ]}
@@ -270,11 +286,8 @@ export default function AdminJobs() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => selectedJob && approvalMutation.mutate({ 
-                jobId: selectedJob.id, 
-                status: 'rejected'
-              })}
-              disabled={approvalMutation.isPending || !actionReason.trim()}
+              onClick={handleReject}
+              disabled={updateMutation.isPending || !actionReason.trim()}
             >
               Reject
             </Button>
