@@ -42,6 +42,12 @@ export interface JobApplication {
   };
 }
 
+// Helper to get session token
+const getSessionToken = () => {
+  const stored = localStorage.getItem('samrambhak_auth');
+  return stored ? JSON.parse(stored).session_token : null;
+};
+
 export function useJobs() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -50,54 +56,16 @@ export function useJobs() {
   const fetchJobs = async () => {
     setLoading(true);
     try {
-      // Auto-close expired jobs first
-      if (user) {
-        await supabase
-          .from('jobs')
-          .update({ status: 'closed' })
-          .eq('status', 'open')
-          .lt('expires_at', new Date().toISOString())
-          .not('expires_at', 'is', null);
-      }
-
-      const { data: jobsData, error } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          profiles:creator_id (id, full_name, username, avatar_url)
-        `)
-        .order('created_at', { ascending: false });
+      const sessionToken = getSessionToken();
+      const { data, error } = await supabase.functions.invoke('manage-jobs', {
+        body: { action: 'list' },
+        headers: sessionToken ? { 'x-session-token': sessionToken } : {},
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Get application counts and user's application status
-      const jobsWithCounts = await Promise.all(
-        (jobsData || []).map(async (job) => {
-          const { count } = await supabase
-            .from('job_applications')
-            .select('*', { count: 'exact', head: true })
-            .eq('job_id', job.id);
-
-          let hasApplied = false;
-          if (user) {
-            const { data: application } = await supabase
-              .from('job_applications')
-              .select('id')
-              .eq('job_id', job.id)
-              .eq('applicant_id', user.id)
-              .maybeSingle();
-            hasApplied = !!application;
-          }
-
-          return {
-            ...job,
-            application_count: count || 0,
-            has_applied: hasApplied,
-          };
-        })
-      );
-
-      setJobs(jobsWithCounts);
+      setJobs(data?.jobs || []);
     } catch (error) {
       console.error('Error fetching jobs:', error);
       toast.error('Failed to load jobs');
@@ -124,56 +92,17 @@ export function useJob(jobId: string) {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          profiles:creator_id (id, full_name, username, avatar_url)
-        `)
-        .eq('id', jobId)
-        .single();
-
-      if (error) throw error;
-
-      // Get application count
-      const { count } = await supabase
-        .from('job_applications')
-        .select('*', { count: 'exact', head: true })
-        .eq('job_id', jobId);
-
-      // Check if user has applied
-      let hasApplied = false;
-      if (user) {
-        const { data: application } = await supabase
-          .from('job_applications')
-          .select('id')
-          .eq('job_id', jobId)
-          .eq('applicant_id', user.id)
-          .maybeSingle();
-        hasApplied = !!application;
-      }
-
-      setJob({
-        ...data,
-        application_count: count || 0,
-        has_applied: hasApplied,
+      const sessionToken = getSessionToken();
+      const { data, error } = await supabase.functions.invoke('manage-jobs', {
+        body: { action: 'get', job_id: jobId },
+        headers: sessionToken ? { 'x-session-token': sessionToken } : {},
       });
 
-      // Fetch applications if user is creator
-      if (user && data.creator_id === user.id) {
-        const { data: apps, error: appsError } = await supabase
-          .from('job_applications')
-          .select(`
-            *,
-            profiles:applicant_id (id, full_name, username, avatar_url, mobile_number, email)
-          `)
-          .eq('job_id', jobId)
-          .order('created_at', { ascending: false });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-        if (!appsError) {
-          setApplications(apps || []);
-        }
-      }
+      setJob(data?.job || null);
+      setApplications(data?.applications || []);
     } catch (error) {
       console.error('Error fetching job:', error);
       toast.error('Failed to load job');
@@ -203,33 +132,16 @@ export function useMyJobs() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          profiles:creator_id (id, full_name, username, avatar_url)
-        `)
-        .eq('creator_id', user.id)
-        .order('created_at', { ascending: false });
+      const sessionToken = getSessionToken();
+      const { data, error } = await supabase.functions.invoke('manage-jobs', {
+        body: { action: 'my_jobs' },
+        headers: sessionToken ? { 'x-session-token': sessionToken } : {},
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Get application counts
-      const jobsWithCounts = await Promise.all(
-        (data || []).map(async (job) => {
-          const { count } = await supabase
-            .from('job_applications')
-            .select('*', { count: 'exact', head: true })
-            .eq('job_id', job.id);
-
-          return {
-            ...job,
-            application_count: count || 0,
-          };
-        })
-      );
-
-      setJobs(jobsWithCounts);
+      setJobs(data?.jobs || []);
     } catch (error) {
       console.error('Error fetching my jobs:', error);
       toast.error('Failed to load your jobs');
