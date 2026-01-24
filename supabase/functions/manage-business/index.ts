@@ -29,6 +29,44 @@ serve(async (req) => {
       );
     }
 
+    // Handle list action - returns user's businesses with all statuses (bypasses RLS)
+    if (action === "list") {
+      const { data: businesses, error: listError } = await supabase
+        .from("businesses")
+        .select("id, name, description, category, logo_url, location, approval_status, owner_id")
+        .eq("owner_id", user_id)
+        .order("created_at", { ascending: false });
+
+      if (listError) {
+        console.error("List businesses error:", listError);
+        return new Response(
+          JSON.stringify({ error: "Failed to fetch businesses" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get follower counts for each business
+      const enrichedBusinesses = await Promise.all(
+        (businesses || []).map(async (business) => {
+          const { count } = await supabase
+            .from("business_follows")
+            .select("*", { count: "exact", head: true })
+            .eq("business_id", business.id);
+
+          return {
+            ...business,
+            follower_count: count || 0,
+          };
+        })
+      );
+
+      console.log("Found", enrichedBusinesses.length, "businesses for user", user_id);
+      return new Response(
+        JSON.stringify({ success: true, businesses: enrichedBusinesses }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!business_id) {
       return new Response(
         JSON.stringify({ error: "Business ID is required" }),

@@ -86,26 +86,23 @@ export default function MyBusinesses() {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('businesses')
-        .select('id, name, description, category, logo_url, location, approval_status')
-        .eq('owner_id', user.id)
-        .order('created_at', { ascending: false });
+      // Use edge function to bypass RLS and get all businesses including pending ones
+      const response = await supabase.functions.invoke('manage-business', {
+        body: {
+          action: 'list',
+          user_id: user.id,
+        },
+      });
 
-      if (error) throw error;
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to fetch businesses');
+      }
 
-      // Get follower counts
-      const businessesWithCounts = await Promise.all(
-        (data || []).map(async (business) => {
-          const { count } = await supabase
-            .from('business_follows')
-            .select('*', { count: 'exact', head: true })
-            .eq('business_id', business.id);
-          return { ...business, follower_count: count || 0 };
-        })
-      );
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
 
-      setBusinesses(businessesWithCounts);
+      setBusinesses(response.data?.businesses || []);
     } catch (error) {
       console.error('Error fetching businesses:', error);
     } finally {
