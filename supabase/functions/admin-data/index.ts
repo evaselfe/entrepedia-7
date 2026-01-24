@@ -80,22 +80,19 @@ serve(async (req) => {
           .from("communities")
           .select(`
             *,
-            creator:profiles!communities_created_by_fkey(full_name, username)
+            creator:profiles!communities_created_by_fkey(full_name, username),
+            community_members(count)
           `)
           .order("created_at", { ascending: false });
 
         if (error) throw error;
 
-        // Get member counts
-        const communitiesWithCounts = await Promise.all(
-          (data || []).map(async (community) => {
-            const { count } = await supabaseAdmin
-              .from("community_members")
-              .select("id", { count: "exact", head: true })
-              .eq("community_id", community.id);
-            return { ...community, member_count: count || 0 };
-          })
-        );
+        // Transform to include member_count
+        const communitiesWithCounts = (data || []).map((community) => ({
+          ...community,
+          member_count: community.community_members?.[0]?.count || 0,
+          community_members: undefined,
+        }));
 
         result = { communities: communitiesWithCounts };
         break;
@@ -106,22 +103,19 @@ serve(async (req) => {
           .from("jobs")
           .select(`
             *,
-            creator:profiles!jobs_creator_id_fkey(full_name, username)
+            creator:profiles!jobs_creator_id_fkey(full_name, username),
+            job_applications(count)
           `)
           .order("created_at", { ascending: false });
 
         if (error) throw error;
 
-        // Get application counts
-        const jobsWithCounts = await Promise.all(
-          (data || []).map(async (job) => {
-            const { count } = await supabaseAdmin
-              .from("job_applications")
-              .select("id", { count: "exact", head: true })
-              .eq("job_id", job.id);
-            return { ...job, application_count: count || 0 };
-          })
-        );
+        // Transform to include application_count
+        const jobsWithCounts = (data || []).map((job) => ({
+          ...job,
+          application_count: job.job_applications?.[0]?.count || 0,
+          job_applications: undefined,
+        }));
 
         result = { jobs: jobsWithCounts };
         break;
