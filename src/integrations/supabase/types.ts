@@ -691,6 +691,8 @@ export type Database = {
           applicant_id: string
           created_at: string | null
           creator_reply: string | null
+          education_qualification: string | null
+          experience_details: string | null
           id: string
           job_id: string
           message: string | null
@@ -700,6 +702,8 @@ export type Database = {
           applicant_id: string
           created_at?: string | null
           creator_reply?: string | null
+          education_qualification?: string | null
+          experience_details?: string | null
           id?: string
           job_id: string
           message?: string | null
@@ -709,6 +713,8 @@ export type Database = {
           applicant_id?: string
           created_at?: string | null
           creator_reply?: string | null
+          education_qualification?: string | null
+          experience_details?: string | null
           id?: string
           job_id?: string
           message?: string | null
