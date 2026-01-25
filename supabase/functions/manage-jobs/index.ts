@@ -351,7 +351,7 @@ serve(async (req) => {
           );
         }
 
-        const { job_id, message } = body;
+        const { job_id, message, education_qualification, experience_details } = body;
         if (!job_id) {
           return new Response(
             JSON.stringify({ error: "Job ID required" }),
@@ -399,6 +399,8 @@ serve(async (req) => {
           job_id,
           applicant_id: userId,
           message: message?.trim() || null,
+          education_qualification: education_qualification?.trim() || null,
+          experience_details: experience_details?.trim() || null,
         });
 
         if (error) throw error;

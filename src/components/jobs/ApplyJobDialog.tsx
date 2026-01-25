@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Send, CheckCircle } from 'lucide-react';
 import { Job } from '@/hooks/useJobs';
@@ -27,6 +28,8 @@ export function ApplyJobDialog({ job, onApplied, hasApplied }: ApplyJobDialogPro
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [education, setEducation] = useState('');
+  const [experience, setExperience] = useState('');
 
   const handleApply = async () => {
     if (!user) {
@@ -40,7 +43,13 @@ export function ApplyJobDialog({ job, onApplied, hasApplied }: ApplyJobDialogPro
       const token = sessionToken ? JSON.parse(sessionToken).session_token : null;
 
       const { data, error } = await supabase.functions.invoke('manage-jobs', {
-        body: { action: 'apply', job_id: job.id, message: message.trim() || null },
+        body: { 
+          action: 'apply', 
+          job_id: job.id, 
+          message: message.trim() || null,
+          education_qualification: education.trim() || null,
+          experience_details: experience.trim() || null,
+        },
         headers: token ? { 'x-session-token': token } : {},
       });
 
@@ -49,6 +58,8 @@ export function ApplyJobDialog({ job, onApplied, hasApplied }: ApplyJobDialogPro
 
       toast.success('Application submitted successfully!');
       setMessage('');
+      setEducation('');
+      setExperience('');
       setOpen(false);
       onApplied?.();
     } catch (error: any) {
@@ -84,7 +95,7 @@ export function ApplyJobDialog({ job, onApplied, hasApplied }: ApplyJobDialogPro
           Apply Now
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Apply for: {job.title}</DialogTitle>
           <DialogDescription>
@@ -93,13 +104,34 @@ export function ApplyJobDialog({ job, onApplied, hasApplied }: ApplyJobDialogPro
         </DialogHeader>
         <div className="space-y-4 mt-4">
           <div className="space-y-2">
-            <Label htmlFor="message">Message (optional)</Label>
+            <Label htmlFor="education">Education Qualification</Label>
+            <Input
+              id="education"
+              placeholder="e.g., B.Tech in Computer Science, MBA, 12th Pass..."
+              value={education}
+              onChange={(e) => setEducation(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="experience">Experience Details</Label>
+            <Textarea
+              id="experience"
+              placeholder="Describe your relevant work experience, skills, and achievements..."
+              value={experience}
+              onChange={(e) => setExperience(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="message">Additional Message (optional)</Label>
             <Textarea
               id="message"
               placeholder="Introduce yourself, explain why you're interested..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              rows={4}
+              rows={3}
             />
           </div>
 
